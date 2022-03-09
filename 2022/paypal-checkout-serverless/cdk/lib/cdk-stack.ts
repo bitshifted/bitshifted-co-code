@@ -38,6 +38,8 @@ export class CdkStack extends cdk.Stack {
         timeout: Duration.minutes(1)
       })
 
+      txTable.grantReadWriteData(lambdaFn)
+
       const checkoutApi = new api.RestApi(this, 'checkout-api', {
         deployOptions: {
           stageName : 'dev'
@@ -54,13 +56,6 @@ export class CdkStack extends cdk.Stack {
         proxy: true
       }))
 
-      // const depl = new api.Deployment(this, 'deployment', {
-      //   api: checkoutApi
-      // })
-
-      // const stage = new api.Stage(this, 'test', {
-      //   deployment: depl
-      // })
    
   }
 }

@@ -5,6 +5,17 @@ import co.bitshifted.sample.dto.*;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 
 public class CheckoutHandler implements RequestHandler<ApiGatewayEvent, ApiGatewayResponse> {
     @Override
@@ -31,11 +42,46 @@ public class CheckoutHandler implements RequestHandler<ApiGatewayEvent, ApiGatew
                 var order = mapper.readValue(event.getBody(), OrderDTO.class);
                 order.setApplicationContext(appContext);
                 var orderResponse = client.createOrder(order);
+                // write to DynamoDB
+                var dbClient = DynamoDbClient.builder().region(Region.EU_CENTRAL_1).build();
+                var itemMap = new HashMap<String, AttributeValue>();
+                itemMap.put("paypalTxId", AttributeValue.builder().s(orderResponse.getId()).build());
+                itemMap.put("status", AttributeValue.builder().s(orderResponse.getStatus().toString()).build());
+                itemMap.put("timestamp", AttributeValue.builder().s(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).build());
+                System.out.println("Item map: " + itemMap);
+                var putRequest = PutItemRequest.builder()
+                    .tableName("TxTable")
+                    .item(itemMap)
+                    .build();
+                dbClient.putItem(putRequest);
+                System.out.println("Successfully created order");
                 return ApiGatewayResponse.builder().statusCode(200)
                     .body(mapper.writeValueAsString(orderResponse))
                     .build();
             } else if(isOrderSuccessRequest(event)) {
+                var token = event.getQueryStringParameters().get("token");
+                // update order status
+                var key = new HashMap<String, AttributeValue>();
+                key.put("paypalTxId", AttributeValue.builder().s(token).build());
 
+                var updateValues = new HashMap<String, AttributeValueUpdate>();
+                updateValues.put("status", AttributeValueUpdate.builder().value(
+                    AttributeValue.builder().s(OrderStatus.COMPLETED.toString()).build()).build());
+                updateValues.put("timestamp", AttributeValueUpdate.builder().value(
+                    AttributeValue.builder().s(ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_DATE_TIME)).build()).build());
+
+                var dbClient = DynamoDbClient.builder().region(Region.EU_CENTRAL_1).build();
+                var request = UpdateItemRequest.builder()
+                    .tableName("TxTable")
+                        .key(key)
+                            .attributeUpdates(updateValues)
+                                .build();
+                dbClient.updateItem(request);
+
+                return ApiGatewayResponse.builder()
+                    .statusCode(200)
+                    .body("{\"status\": \"success\"}")
+                    .build();
             }
             return ApiGatewayResponse.builder()
                 .statusCode(400)

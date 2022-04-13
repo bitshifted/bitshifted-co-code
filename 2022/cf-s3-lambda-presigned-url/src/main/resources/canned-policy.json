@@ -1,0 +1,12 @@
+{
+  "Statement":[
+    {
+      "Resource": "%s",
+      "Condition":{
+        "DateLessThan":{
+          "AWS:EpochTime": %d
+        }
+      }
+    }
+  ]
+}

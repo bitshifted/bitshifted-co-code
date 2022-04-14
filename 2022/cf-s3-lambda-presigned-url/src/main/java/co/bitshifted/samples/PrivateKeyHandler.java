@@ -20,7 +20,6 @@ public class PrivateKeyHandler {
             }
         }
         var key = sb.toString();
-        System.out.println("Key: " + key);
         byte[] encoded = Base64.getDecoder().decode(key);
         var factory = KeyFactory.getInstance("RSA");
         var keySpec = new PKCS8EncodedKeySpec(encoded);

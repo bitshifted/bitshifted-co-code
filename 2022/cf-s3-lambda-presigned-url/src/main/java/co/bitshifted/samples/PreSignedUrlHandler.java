@@ -27,29 +27,23 @@ public class PreSignedUrlHandler implements RequestHandler<InputData, String> {
 
     @Override
     public String handleRequest(InputData input, Context context) {
-        System.out.println("Input path: " + input.getPath());
         var privateKeySecretName = System.getenv(PRIVATE_KEY_SECRET_VAR_NAME);
-        System.out.println("secret name: " + privateKeySecretName);
         var domainName = System.getenv(CF_DISTRO_DOMAIN_VAR_NAME);
-        System.out.println("Distro domain: " + domainName);
         var keypairId = System.getenv(KEYPAIR_ID_VAR_NAME);
-        System.out.println("Keypair ID: " + keypairId);
         var client = SecretsManagerClient.builder().region(Region.EU_CENTRAL_1).build();
 
         var secretRequest = GetSecretValueRequest.builder().secretId(privateKeySecretName).build();
         var secretResponse = client.getSecretValue(secretRequest);
-        System.out.println("Secret response: \n" + secretResponse);
+
         try {
             var privKey = PrivateKeyHandler.readKey(secretResponse.secretString());
             var signer = new CloudfrontUrlSigner();
-            signer.sign(input.getPath(), Duration.ofDays(7), privKey, domainName, keypairId);
+            var url = signer.sign(input.getPath(), Duration.ofDays(7), privKey, domainName, keypairId);
+            return url;
         } catch (Exception ex) {
             ex.printStackTrace();
             throw new RuntimeException(ex);
         }
-
-
-        return "hello";
     }
 }
 

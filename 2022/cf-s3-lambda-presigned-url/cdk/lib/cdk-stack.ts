@@ -16,9 +16,9 @@ export class CdkStack extends Stack {
     super(scope, id, props);
 
     const bucket = new s3.Bucket(this, 'bucket-for-testing', {
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       bucketName: "cf-s3-presigned-test-bucket",
-      removalPolicy: RemovalPolicy.DESTROY
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true
     })
 
     const cdIdentity = new cf.OriginAccessIdentity(this, 'cd-aoi', {
@@ -59,8 +59,7 @@ export class CdkStack extends Stack {
         }),
         trustedKeyGroups: [cfKeyGroup],
         viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY
-      },
-      enableLogging: true
+      }
     })
 
     const lambdaFunction = new lambda.Function(this, 'presign-url-lambda', {

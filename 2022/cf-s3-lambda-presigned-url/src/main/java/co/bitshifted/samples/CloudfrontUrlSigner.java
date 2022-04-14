@@ -9,6 +9,8 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 public class CloudfrontUrlSigner {
 
@@ -28,7 +30,7 @@ public class CloudfrontUrlSigner {
         }
     }
 
-    public void sign(String path, Duration duration, PrivateKey privateKey, String domain, String keyPairId) throws Exception {
+    public String sign(String path, Duration duration, PrivateKey privateKey, String domain, String keyPairId) throws Exception {
         var expiration = getExpiration(duration);
         var resourcePath = String.format(RESOURCE_PATH_FORMAT, domain, path);
         var policy = buildCannedPolicy(resourcePath, expiration);
@@ -37,14 +39,15 @@ public class CloudfrontUrlSigner {
         String urlSafeSignature = makeBytesUrlSafe(signatureBytes);
         var url = String.format(URL_FORMAT, domain, path, expiration, urlSafeSignature, keyPairId);
         System.out.println("Signed URL: " + url);
+        return url;
     }
 
     private long getExpiration(Duration duration) {
-        return  Instant.now().plus(duration).getEpochSecond();
+        return ZonedDateTime.now(ZoneId.of("UTC")).plus(duration).toInstant().getEpochSecond();
     }
 
     private String buildCannedPolicy(String resourcePath, long expires) {
-        var policy = String.format(cannedPolicy, resourcePath, expires);
+        var policy = String.format(cannedPolicy, resourcePath, expires).replaceAll("\\s+", "");
         return policy;
     }
 
